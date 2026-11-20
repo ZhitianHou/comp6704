@@ -1,0 +1,29 @@
+[
+  {
+    "algorithm": "ISTA",
+    "converged": true,
+    "iterations": 114,
+    "setup_s": 0.004252292215824127,
+    "update_s": 0.0016546235419809818,
+    "diagnostic_s": 0.0035088802687823772,
+    "total_s": 0.009485749993473291
+  },
+  {
+    "algorithm": "CD",
+    "converged": true,
+    "iterations": 14,
+    "setup_s": 0.0003981250338256359,
+    "update_s": 0.008474627509713173,
+    "diagnostic_s": 0.00046912627294659615,
+    "total_s": 0.009351333137601614
+  },
+  {
+    "algorithm": "ADMM",
+    "converged": true,
+    "iterations": 40,
+    "setup_s": 0.000337124802172184,
+    "update_s": 0.0018207933753728867,
+    "diagnostic_s": 0.0012869532220065594,
+    "total_s": 0.0034699169918894768
+  }
+]

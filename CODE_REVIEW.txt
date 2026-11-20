@@ -1,0 +1,49 @@
+Code review — 2026-11-20
+
+Scope: model scaling, all three updates, dual feasibility/gap, stopping and
+nonconvergence, data generation/splits, timing interpretation, aggregation,
+portable export, archive manifest and report compilation.
+
+Findings and fixes
+1. Synthetic n_test, sparsity and noise parameters and real split fractions were
+   hard-coded despite appearing in the protocol. The runner now consumes them.
+   Study counts are derived and checked; unsupported diagnostic/dtype/thread
+   settings fail rather than being silently ignored.
+2. --output paths were truncated to a basename by downstream tools. Shared path
+   resolution and --run now support absolute custom paths and relocated archives.
+3. The exporter could summarize capped (unconverged) elapsed times as ordinary
+   successes. It now refuses an incomplete/nonconverged study. Raw failures remain
+   available; no zero completion times are manufactured.
+4. Solver inputs lacked shape/finite/positive-parameter checks; negative max_iter
+   could leave termination variables uninitialized. They now fail explicitly.
+   Zero columns are held at zero by coordinate descent, consistent with L1.
+5. The archive README advertised a pilot renderer absent from the archive. It is
+   now included. Paper checks accept up to 10 pages instead of hard-coding 8.
+6. The PDF referred to a separate ZIP without a way to access it. It now embeds a
+   nonrecursive source/results ZIP and provides a first-page attachment link.
+
+Validation
+- Unequal column scales compared against sklearn and a separate nonnegative
+  split-variable QP solved by SLSQP (not the three compared update loops).
+- Rank-deficient, underdetermined, zero-column and iteration-cap checks.
+- Independent reconstruction of dual feasibility and objective certificate.
+- Invalid-parameter checks and nonconvergence export rejection.
+- All 54 original problem/algorithm solutions replayed with reviewed code;
+  coefficients bitwise identical, iteration counts and objectives unchanged.
+- Full local stored-data audit covers 162 timed rows, array regeneration,
+  split disjointness, source hashes and final certificates.
+
+Impact on results
+No numerical error in the three original algorithm updates was found on these
+checks. No formal raw log was rewritten and no new timing repetition is merged
+with the original results. Root-source validation introduces some new overhead,
+so reported time comparisons remain explicitly tied to the frozen source in the
+original successful run directory. These checks are evidence for the supplied
+implementation and cases, not a proof for every possible floating-point input.
+
+Remaining limitations
+The experiment uses small dense float64 arrays and Python CD loops. Native
+threads are requested rather than independently verified for Accelerate.
+The compact ZIP excludes processed .npz arrays; the local full audit is stronger
+than the reduced archive audit. review_checks' full replay needs local arrays or
+a freshly regenerated study. External code publishing has not been performed.

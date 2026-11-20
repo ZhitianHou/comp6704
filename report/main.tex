@@ -1,0 +1,259 @@
+\documentclass{article}
+\usepackage[preprint]{neurips_2025}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref,url,xcolor,placeins}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\makeatletter
+\renewcommand{\@noticestring}{}
+\makeatother
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\|#1\right\|}
+\newcommand{\soft}{\mathcal{S}}
+\newcommand{\resultdir}{../outputs/formal_20261119T120859Z}
+\newcommand{\ablationdir}{../outputs/ablations_20261120T062041Z}
+\newcommand{\realdir}{../outputs/realdata_20261120T093041Z}
+\title{Solving Sparse Regression under Correlated Features:\\ISTA, Coordinate Descent, and ADMM}
+\author{HOU Zhitian\\Student ID: 26017658r}
+\begin{document}
+\maketitle
+\begin{abstract}
+Sparse regression is widely used to select relevant predictors, but correlated features can make optimization expensive. Algorithms that minimize the same LASSO objective may also differ in the cost of verifying convergence, complicating practical comparisons. This study compares iterative shrinkage-thresholding (ISTA), cyclic coordinate descent (CD), and the alternating direction method of multipliers (ADMM) under a common primal-dual stopping criterion. Experiments combine controlled synthetic designs with the Diabetes and Superconductivity datasets, with supplementary analyses of certificate frequency and ADMM's penalty parameter. The methods achieve nearly identical predictive errors but substantially different solve times. On highly correlated synthetic problems, mean times are $136.6$, $49.2$, and $12.9$ ms for ISTA, CD, and ADMM, respectively. ADMM is also fastest on Superconductivity, while CD is fastest on Diabetes. Less frequent certification substantially reduces ISTA's measured time, and changing ADMM's penalty can reverse its ranking against CD, demonstrating that the observed efficiency depends on certification policy and parameter choices.
+\end{abstract}
+\input{code_availability.tex}
+
+\section{Introduction and related work}
+Choosing relevant variables is useful when many measured features may be redundant. LASSO combines a quadratic data-fit term with an $\ell_1$ penalty, producing sparse coefficient vectors \citep{tibshirani1996}. Unlike smooth neural-network training, it explicitly requires handling a non-differentiable term. It also connects directly to proximal mappings, coordinate minimization, convex duality, and augmented Lagrangians covered in optimization courses.
+
+The study asks two questions. First, how does feature correlation affect the cost of reaching a common optimization accuracy? Second, how does the resulting sparse estimator recover known coefficients and predict held-out responses? These questions must be separated: reaching an optimum faster does not, by itself, change the estimator being optimized. The contribution is a controlled implementation comparison with certified stopping, explicit preparation and diagnostic costs, and matched data generation. No new algorithm is proposed.
+
+\paragraph{Three optimization mechanisms.} Proximal gradient retains the non-smooth penalty exactly while upper-bounding the smooth loss \citep{parikh2014}. Basic ISTA is a transparent baseline; accelerated FISTA improves the general convex objective bound from $O(1/k)$ to $O(1/k^2)$ under its stated assumptions \citep{beck2009}. FISTA is relevant context but is not experimentally evaluated here. CD instead exploits separability by solving one scalar minimization exactly. \citet{friedman2010} combine coordinate descent with regularization paths and implementation optimizations; \citet{tseng2001} establish convergence under non-smooth separability and regularity assumptions. Our single-$\lambda$ cyclic implementation studies this basic mechanism, not the entire pathwise solver. ADMM uses an equality-constrained split, trading a cached linear solve for separable thresholding \citep{boyd2011}. The choice depends on matrix dimensions, structure, and reusable preparation, as well as iteration count.
+
+\paragraph{Practical developments beyond basic updates.} Modern sparse solvers also reduce which variables need updating. Gap Safe screening uses duality-gap information to certify that some coefficients can be excluded without discarding an active optimum \citep{ndiaye2017}. Celer combines improved dual points with screening and working sets \citep{massias2018}. These ideas give dual certificates a computational role beyond checking termination. A broader numerical survey compares several LASSO algorithm families \citep{zhao2023}. The 2025 skglm paper describes a modular combination of datafits, penalties and solvers, with working-set methods exploiting sparse solutions \citep{moufad2025}. Its large-dimensional library benchmarks do not establish a speed ranking for the small dense problems here.
+
+\paragraph{Position of this study.} We isolate three basic update mechanisms. Screening, acceleration and optimized compiled coordinate loops are excluded, and sklearn is an accuracy reference rather than a timed fourth competitor. This keeps the scope controlled but limits external validity: faster ADMM here does not establish superiority over production solvers. The diagnostic-cost analysis is relevant because practical methods can use more informative dual points or less frequent checks, whereas the primary study charges the same simple certificate at every outer iteration.
+
+\section{Problem formulation}
+For raw features $X_{\rm raw}\in\R^{n\times p}$ and responses $y_{\rm raw}\in\R^n$, let $s_j>0$ be training feature standard deviations. The model, penalized in standardized coordinates, is
+\begin{equation}
+ \min_{b,\beta}\ \frac{1}{2n}\norm{y_{\rm raw}-b\mathbf{1}-X_{\rm raw}\beta}_2^2+\lambda\sum_j s_j|\beta_j|,
+ \qquad \lambda>0.
+\end{equation}
+Using only training observations, features are centered and divided by their population standard deviations, and responses are centered. Constant columns must be removed or assigned zero coefficients. Below, $X,y$ denote processed training data, and $w_j=s_j\beta_j$. Thus scaling defines the penalty coordinate system; it is not equivalent to an unweighted raw-scale penalty. The centered objective is
+\begin{equation}\label{eq:objective}
+ F(w)=f(w)+g(w)=\frac{1}{2n}\norm{Xw-y}_2^2+\lambda\norm{w}_1,
+ \quad \nabla f(w)=X^\top(Xw-y)/n.
+\end{equation}
+The gradient has Lipschitz constant $L=\norm{X}_2^2/n$. Convexity ensures that any point satisfying the subgradient optimality condition is globally optimal. Because $\lambda>0$, the continuous objective is coercive and attains a minimum. Full column rank makes the quadratic strictly convex and the coefficient solution unique; coefficient uniqueness should not be assumed for arbitrary underdetermined designs.
+
+The Karush--Kuhn--Tucker conditions are
+\begin{equation}\label{eq:kkt}
+ \begin{cases}
+ [\nabla f(w)]_j+\lambda\operatorname{sign}(w_j)=0,&w_j\ne0,\\
+ |[\nabla f(w)]_j|\le\lambda,&w_j=0.
+ \end{cases}
+\end{equation}
+Thus $w=0$ is optimal when $\lambda\ge\lambda_{\max}=\norm{X^\top y/n}_\infty$. The experiment fixes $\lambda=0.05\lambda_{\max}$ separately for each training problem. This is a common relative-regularization protocol, not a search for best test performance. Test observations use training preprocessing statistics. If $\mu,s,\bar y$ are the training feature means, feature scales, and target mean, original-scale coefficients are $\beta_j=w_j/s_j$ and intercept $b=\bar y-\mu^\top\beta$.
+
+\section{Algorithms and theoretical conditions}
+All methods start at zero and solve Equation~\eqref{eq:objective} without warm starts. Define coordinatewise soft thresholding by
+\begin{equation}
+ [\soft_\tau(v)]_j=\operatorname{sign}(v_j)\max\{|v_j|-\tau,0\}.
+\end{equation}
+
+\subsection{ISTA: proximal gradient}
+ISTA minimizes a quadratic upper model of the smooth term plus the exact penalty:
+\begin{align}
+ w^{k+1}&=\arg\min_v\left\{\nabla f(w^k)^\top(v-w^k)+\frac{\norm{v-w^k}_2^2}{2t}+\lambda\norm{v}_1\right\}\\
+ &=\soft_{t\lambda}\left(w^k-tX^\top(Xw^k-y)/n\right).
+\end{align}
+The separable scalar subproblems yield the thresholding formula. We use $t=1/L$, computing $L$ by the exact spectral norm. For convex $f$ with $L$-Lipschitz gradient and proper closed convex $g$, $0<t\le1/L$ gives non-increasing objectives and the bound
+\begin{equation}
+ F(w^k)-F^*\le\frac{\norm{w^0-w^\star}_2^2}{2tk},\qquad w^\star\in\arg\min F.
+\end{equation}
+Proximal optimality gives $0\in\nabla f(w^k)+(w^{k+1}-w^k)/t+\partial g(w^{k+1})$. The smooth-loss upper bound and convexity yield
+\begin{equation}
+ F(w^{k+1})-F^*\le\frac{\norm{w^k-w^\star}_2^2-\norm{w^{k+1}-w^\star}_2^2}{2t}.
+\end{equation}
+Summing and using non-increasing objectives gives the rate. This is a worst-case bound, not an equality that empirical curves must follow. Correlation can increase $L$ and create weakly curved directions, making a single conservative step size inefficient.
+
+\subsection{Cyclic coordinate descent}
+Maintain $r=y-Xw$. For each coordinate $j=1,\ldots,p$, use the latest available coefficients and compute
+\begin{align}
+ a_j&=\norm{X_j}_2^2/n,&c_j&=X_j^\top(r+X_jw_j)/n,\\
+ w_j^{\rm new}&=\soft_\lambda(c_j)/a_j,&
+ r&\leftarrow r-X_j(w_j^{\rm new}-w_j^{\rm old}).
+\end{align}
+Holding other coefficients fixed reduces the problem to minimizing $a_jv^2/2-c_jv+\lambda|v|$. Considering positive, negative, and zero $v$ gives the update above. Nonzero columns ensure $a_j>0$ and a unique coordinate minimum. The smooth convex loss, separable convex penalty, and compact sublevel sets provide the regularity needed for cyclic coordinate minimization in this setting \citep{tseng2001}. One reported outer iteration means a full sweep over all $p$ coordinates, not a single scalar update.
+
+\subsection{ADMM: variable splitting}
+Split the coefficient into a quadratic variable $x$ and sparse variable $z$:
+\begin{equation}
+ \min_{x,z}\ f(x)+\lambda\norm{z}_1\quad\text{subject to }x=z.
+\end{equation}
+With scaled dual variable $u$, initial values $x^0=z^0=u^0=0$, and fixed $\rho=1$, the updates are
+\begin{align}
+ (X^\top X/n+\rho I)x^{k+1}&=X^\top y/n+\rho(z^k-u^k),\\
+ z^{k+1}&=\soft_{\lambda/\rho}(x^{k+1}+u^k),\\
+ u^{k+1}&=u^k+x^{k+1}-z^{k+1}.
+\end{align}
+The matrix is positive definite for $\rho>0$; its Cholesky factor is cached and each update uses triangular solves. No inverse is formed. For proper closed convex functions, a saddle point, exact subproblem solves, and the standard two-block assumptions satisfied here, ADMM has vanishing primal residual and convergent objective values \citep{boyd2011}. This does not imply convergence for arbitrary nonconvex problems. We record $r^k=x^k-z^k$ and $s^k=\rho(z^k-z^{k-1})$ for diagnosis, but use the same certificate as other methods for stopping. The original objective and predictions are always evaluated at $w=z$, not by mixing the loss at $x$ with the penalty at $z$.
+
+\subsection{Computational and storage costs}
+The ADMM updates minimize $f(x)+\lambda\norm{z}_1+(\rho/2)\norm{x-z+u}_2^2-(\rho/2)\norm{u}_2^2$ alternately in $x,z$, then update $u$. The subproblems are respectively quadratic and separable.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{llll}
+\toprule
+Method & Preparation & Update / outer iteration & Extra storage\\
+\midrule
+ISTA & $O(np\min(n,p))$ for exact norm & $O(np)$ & $O(n+p)$\\
+CD & $O(np)$ & $O(np)$ per full sweep & $O(n+p)$\\
+ADMM & $O(np^2+p^3)$ & $O(p^2)$ & $O(p^2)$\\
+\bottomrule
+\end{tabular}
+\caption{Dense costs, with extra storage measured for iterations, excluding input, histories, and preparation workspaces (such as SVD temporaries). ADMM assumes $n\ge p$. Diagnostic checks add $O(np)$ per checked iteration.}
+\label{tab:complexity}
+\end{table}
+
+The comparison is implementation-specific. CD uses Python coordinate loops around NumPy vector operations; ISTA uses matrix-vector products; ADMM uses SciPy factorization and triangular solves. With small $p$, cached factorization is inexpensive, whereas large $p$ would make ADMM storage and preparation less attractive.
+
+\section{Experimental protocol and validation}
+\subsection{Datasets and fixed parameters}
+Synthetic designs have covariance $\Sigma_{ij}=c^{|i-j|}$ for $c\in\{0,0.5,0.9\}$. They are generated by $X_j=cX_{j-1}+\sqrt{1-c^2}Z_j$ using independent standard normal innovations. Each problem has 1,000 training and 1,000 independently generated test observations, 200 features, and 20 nonzero true coefficients with signs sampled from $\{-1,1\}$. Response noise is independent Gaussian with standard deviation $0.5$. Seeds $1,2,3,4,5$ are used; within a seed, innovations, coefficient support/signs, and noise are matched across correlation levels. The standardized truth is $w^{\mathrm{true}}=s\odot\beta^*$, which avoids comparing coefficients in different units.
+
+The Diabetes regression dataset has 442 observations and 10 features \citep{sklearndata}. Raw, unscaled data are split by shuffled indices with seeds $1,2,3$: 309 training, 66 reserved validation, and 67 test observations. Preprocessing uses training observations only. The validation set remains unused because no hyperparameter search is conducted. There is no known true coefficient support, so coefficient-recovery and support metrics are not reported for this dataset. The experiment makes no clinical inference.
+
+The added Superconductivity dataset contains 21,263 records and 81 engineered predictors of critical temperature \citep{hamidieh2018}. The official \texttt{train.csv} is used with checksummed provenance. We retain all rows but group identical predictor vectors before splitting: there are 15,170 distinct vectors. For seeds 1/2/3, shuffled groups are allocated 70\%/15\%/15\% to training/reserved validation/test, so a descriptor-identical group cannot cross sets. Training sizes are 15,064/14,897/14,819 and test sizes 3,129/3,129/3,150. Scaling and centering use training rows only. This is descriptor grouping, not a chemical-family extrapolation test. No test-based tuning is performed.
+
+All methods use float64, $\lambda=0.05\lambda_{\max}$, and at most 20,000 outer iterations. ADMM uses $\rho=1$, without relaxation or adaptive penalty selection. The original primary protocol was fixed after separate pilot seeds 11/12 and before the formal runs. No test outcomes select parameters. The original primary study has $3\times5\times3=45$ synthetic and $3\times3=9$ Diabetes problem/method combinations. Three timing repetitions per combination yield 162 timed solves, rather than 162 independent datasets.
+
+\subsection{A common stopping certificate}
+For any coefficient vector $w$, construct a feasible dual vector
+\begin{equation}
+ v=(y-Xw)/n,\qquad
+ \theta=v/\max\{1,\norm{X^\top v}_\infty/\lambda\}.
+\end{equation}
+Introduce $r=y-Xw$ and multiplier $\theta$. The Lagrangian is $\norm{r}_2^2/(2n)+\lambda\norm{w}_1+\theta^\top(y-Xw-r)$. Minimizing in $r$ gives $r=n\theta$ and contribution $-n\norm{\theta}_2^2/2$. Minimizing in $w$ is finite exactly when $\norm{X^\top\theta}_\infty\le\lambda$. Hence the dual objective is $D(\theta)=y^\top\theta-(n/2)\norm{\theta}_2^2$. The feasible construction above and weak duality give
+\begin{equation}
+ 0\le F(w)-F^*\le G(w):=F(w)-D(\theta).
+\end{equation}
+For full-rank $X$, $\mu=\lambda_{\min}(X^\top X/n)>0$ also gives $\norm{w-w^\star}_2\le\sqrt{2G(w)/\mu}$ by strong convexity. Equal objective-gap tolerances need not imply equal coefficient accuracy across differently conditioned problems. This bounds numerical error to the LASSO optimum, not statistical error to the generating truth, and does not guarantee support recovery.
+Every outer iteration evaluates the same certificate and stops when $G(w)/\max\{F(0),10^{-15}\}\le10^{-6}$. The denominator is the initial objective, not the optimum, and raw gaps remain available. Unsuccessful solves would retain their records with missing time-to-tolerance; none occurred. We also record the maximum violation of Equation~\eqref{eq:kkt}, normalized by $\lambda_{\max}$.
+
+Three independent checks precede the study: an orthonormal design with an analytic soft-thresholded solution, the zero solution for $\lambda\ge\lambda_{\max}$, and a correlated design cross-checked against high-accuracy \texttt{sklearn.linear\_model.Lasso}. The library uses the same $1/(2n)$ scaling, with \texttt{alpha=}$\lambda$ and \texttt{fit\_intercept=False} \citep{sklearnlasso}. Each formal problem also has an external reference fit with tolerance $10^{-13}$ and independently checked relative duality gap below $10^{-10}$. References are excluded from timing. These checks verify our implementation; they do not establish a new algorithmic contribution.
+
+\subsection{Timing and metrics}
+Experiments ran on macOS 26.6, ARM64, with Python 3.13.13, NumPy 2.5.5, SciPy 1.18.1, and scikit-learn 1.9.1. Before NumPy import, native-library environment variables request one thread; \texttt{threadpoolctl} also applies a one-thread limit. Apple Accelerate's actual thread count is not fully enumerated by that interface, so this remains an environmental limitation rather than a verified thread count. No GPU is used.
+
+In the original primary study, each method is warmed up on separate synthetic seed 101. Every timed solve starts from zero and includes method-specific preparation, iterative updates, certificate evaluation, and in-memory history bookkeeping. Shared data preprocessing, reference fits, disk serialization, and plotting are excluded. Method order is shuffled within each timing repetition. Total, preparation, update, and diagnostic times are retained separately. The primary time is the median of three complete timings per problem. Means and sample standard deviations ($\mathrm{ddof}=1$) are then computed across five synthetic seeds or three real-data splits.
+
+Secondary metrics are test MSE, $\norm{w-w^{\mathrm{true}}}_2/\norm{w^{\mathrm{true}}}_2$, and support F1 with the predeclared selection threshold $|w_j|>10^{-6}$. Recovery plots use the high-accuracy reference solutions to distinguish statistical properties from stopping error. Sparsity recovery is not guaranteed merely because optimization converges.
+
+The repository provides the implementations, frozen configurations, raw logs and experiment commands in its README. NumPy/SciPy supply numerical kernels, and sklearn supplies reference fits. Review replays and pilot runs are excluded from formal solve counts.
+
+\section{Results and analysis}
+\subsection{Certified accuracy and computational efficiency}
+All 162 original primary solves converged. Their largest relative gap was $9.9943\times10^{-7}$. The maximum objective difference from the corresponding external reference was $1.3853\times10^{-6}$, across objectives with different response scales. Within each problem/method combination, all three repetitions had identical iteration counts and objective values, confirming that repetitions measure timing variability rather than different solutions.
+
+\begin{table}[ht]
+\centering\small
+\input{\resultdir/timing_table.tex}
+\caption{Total time and iterations: mean $\pm$ sample SD across dataset seeds after median timing aggregation. Diagnostic percentages are mean per-problem fractions of total time. Synthetic tasks use $n=1000,p=200$; Diabetes uses $n=309,p=10$.}
+\label{tab:timing}
+\end{table}
+
+On synthetic data, mean ISTA iterations rise from $29.0$ at $c=0$ to $104.4$ at $c=0.5$ and $2946.4$ at $c=0.9$. Corresponding CD sweeps rise from $6.4$ to $11.8$ and $76.4$, and ADMM iterations from $25.4$ to $38.6$ and $157.0$. The sample design condition number rises from approximately $2.55$ to $28.14$ (Table~\ref{tab:recovery}). These observations are consistent with greater numerical difficulty in correlated designs; they are not a controlled causal estimate for condition number alone.
+
+ADMM has the lowest mean synthetic end-to-end time at all three correlation levels. At $c=0.9$, its $12.89$ ms compares with $49.22$ ms for CD and $136.57$ ms for ISTA. Cached dense factorization is particularly affordable at $p=200$. Fewer outer iterations alone do not explain speed: CD needs fewer sweeps than ADMM iterations but performs $p$ sequential coordinate updates per sweep.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{\resultdir/formal_timing.pdf}
+\caption{Timing and iteration summaries across five synthetic seeds. Error bars are sample SD, not confidence intervals. Both panels use logarithmic vertical axes.}
+\label{fig:timing}
+\end{figure}
+
+The Diabetes ordering differs. Mean times are $12.11\pm9.99$ ms for ISTA, $1.91\pm1.39$ ms for CD, and $5.28\pm5.81$ ms for ADMM. Split-to-split variation is substantial: ADMM requires 458, 48, and 98 iterations on splits 1, 2, and 3. This supports reporting variation and avoiding a universal winner claim. Three overlapping random splits are descriptive repetitions, not three independent population samples.
+
+\subsection{Larger real-data benchmark: Superconductivity}
+The added experiment retains the original $\lambda/\lambda_{\max}=0.05$, $\rho=1$, $q=1$, zero initialization and $10^{-6}$ tolerance. Three group-aware splits and three timing repeats give 27 solves, all certified. These are new problems, not extra repetitions of Diabetes; their records and source snapshot are separate. A separate group split (seed 101) supplies a capped 50-update warmup for each method.
+\begin{table}[ht]
+\centering\footnotesize\input{\realdir/realdata_table.tex}
+\caption{Superconductivity: median timing within split, then mean $\pm$ sample SD over three overlapping group-based splits. Targets remain in kelvin; MSE scales differ from Diabetes and synthetic data.}
+\label{tab:realdata}
+\end{table}
+With roughly 15,000 training rows and 81 features, ADMM takes $34.5\pm1.0$ ms, CD $123.7\pm8.1$ ms and ISTA $1785.1\pm45.9$ ms. ADMM has 232 mean iterations versus 146 CD sweeps: cached $81\times81$ factorization/solves are inexpensive relative to repeated row-wise products. The design condition number is about 800, and ISTA takes about 7,886 iterations. All methods give test MSE about $415.85\,\mathrm{K}^2$ and $R^2=0.636$, with between-method MSE differences below $0.001$. This extends the efficiency finding to a larger real design without demonstrating better prediction or universal ADMM dominance: CD remains faster on Diabetes, and the sensitivity study below shows penalty dependence. Three overlapping splits and engineered descriptors limit generalization claims; this is not a state-of-the-art materials prediction study.
+
+\subsection{The cost of checking convergence}
+\begin{table}[ht]
+\centering\small\input{\resultdir/spectral_table.tex}
+\caption{Quantities computed from the saved synthetic designs. $L,\mu,\lambda$ are means over five seeds. The final column is the range of paired median-time ratios over those seeds, not a confidence interval.}
+\label{tab:spectral}
+\end{table}
+Table~\ref{tab:spectral} makes the mechanism more explicit: mean $L$ grows from $2.04$ to $19.03$, while mean $\mu$ falls from $0.314$ to $0.024$. ISTA's step therefore shrinks as weak directions become harder to optimize. The paired ISTA/ADMM total-time ratio ranges from $9.85$ to $11.68$ across the five high-correlation problems; this is consistent within these seeds, without constituting a population-level significance result. Absolute $\lambda$ also increases, confirming that correlation and regularization effects are not isolated here.
+At synthetic correlation $0.9$, certificate evaluation accounts for about $64.8\%$ of ISTA total time, $5.0\%$ for CD, and $37.9\%$ for ADMM. Excluding diagnostics and bookkeeping, the mean of per-problem median preparation-plus-update times is approximately $46.51$ ms for ISTA, $46.70$ ms for CD, and $7.96$ ms for ADMM. Thus the end-to-end separation between ISTA and CD is much larger than their separation in measured computation without certificates. An equal diagnostic rule is transparent, but it affects methods differently because they need different numbers of outer iterations.
+
+ISTA's exact spectral-norm setup costs roughly $4.1$ ms at $c=0$ and constitutes most of its time on that easy task. The primary study retains its original policy; a separate post-hoc experiment below varies certification frequency. Figure~\ref{fig:convergence} shows the median-time repetition for seed 1, as an illustration rather than a substitute for all-seed summaries.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{\resultdir/formal_convergence.pdf}
+\caption{Relative duality gap against outer iteration and elapsed time, including preparation and diagnostics, for synthetic seed 1. Each algorithm uses its median-time repetition. CD iterations are full coordinate sweeps. Dashed lines mark the common tolerance.}
+\label{fig:convergence}
+\end{figure}
+
+\subsection{Statistical recovery and prediction}
+\begin{table}[ht]
+\centering\footnotesize
+\input{\resultdir/recovery_table.tex}
+\caption{Synthetic data properties and recovery at high-accuracy reference solutions, mean $\pm$ sample SD across five seeds. $\kappa_2(X)$ is the condition number of the standardized training design.}
+\label{tab:recovery}
+\end{table}
+
+As correlation rises from 0 to 0.9, relative coefficient error increases from $0.066$ to $0.363$, support F1 decreases from $0.995$ to $0.812$, and test MSE rises from $0.343$ to $0.851$. Closely related variables make identifying individual coefficients harder in this protocol. The prediction loss also increases, although coefficient recovery and prediction need not deteriorate equally in general. The fixed $\lambda/\lambda_{\max}$ rule changes absolute regularization across designs, and changing correlation also changes signal geometry, so these are results for the complete prescribed data-and-regularization setting.
+
+
+At the common stopping accuracy, the three solvers have effectively the same synthetic prediction and recovery metrics: for $c=0.9$, mean test MSE is $0.851186$ for ISTA, $0.851184$ for CD, and $0.851187$ for ADMM. On Diabetes, all three mean test MSE values round to approximately $3042.1$, with split SD about $159.2$. These tiny between-method differences reflect finite stopping error and should not be presented as meaningful predictive advantages. The main algorithmic distinction is the computational route to a common solution.
+
+\FloatBarrier
+\subsection{Diagnostic-frequency ablation and penalty sensitivity}
+The primary results motivated two post-hoc questions: does certification overhead explain the timing separation, and is ADMM's advantage robust to its fixed penalty? Before supplementary runs, a separate protocol specified $q\in\{1,10\}$ checks per outer-iteration interval for all three algorithms at $c=0,0.9$, and $\rho\in\{0.1,1,10\}$ for ADMM at $c=0.9,q=1$. The same five training problems, zero initialization, $\lambda$, tolerance and three timing repetitions are retained. The shared $\rho=1,q=1$ baseline is counted once, yielding 210 timed solves. Settings are shuffled and baselines measured contemporaneously. Original primary timings are not pooled with the new session, and these observations do not select replacement primary parameters.
+
+\begin{table}[ht]
+\centering\small\input{\ablationdir/ablation_table.tex}
+\caption{Post-hoc experiments at $c=0.9$: mean $\pm$ sample SD across five seeds after median timing aggregation. $q$ is the certificate interval. Both analyses share the same ADMM $\rho=1,q=1$ baseline.}
+\label{tab:ablations}
+\end{table}
+
+Every supplementary solve passes the same final certificate. At $c=0.9$, changing $q$ from 1 to 10 reduces ISTA mean time from $136.10$ to $53.68$ ms, with mean paired speedup $2.53\times$; ADMM falls from $12.15$ to $7.18$ ms. CD changes little ($49.06$ to $48.43$ ms). Thus much of the ISTA--CD end-to-end gap comes from diagnostic work. Less frequent checking is not universally beneficial: at $c=0$, CD takes $6.45$ rather than $4.43$ ms because it performs 10 sweeps instead of about 6.4 before certifying. Scheduled checks must still satisfy the original tolerance; unchecked iterates are never reported as converged.
+
+ADMM at $c=0.9,q=1$ takes $74.85$, $12.15$, and $117.25$ ms for $\rho=0.1,1,10$, respectively. Its mean iterations change from $984.2$ to $157.0$ and $1555.4$. Both alternative penalties are slower than contemporaneous CD. This directly narrows the original conclusion: the measured ADMM advantage holds for the stated $\rho=1$ configuration, not for arbitrary positive penalties. The grid is sensitivity evidence, not a claim that $\rho=1$ is globally optimal. Complete low-correlation and paired results are available in the repository.
+
+\begin{figure}[ht]
+\centering\includegraphics[width=\linewidth]{\ablationdir/ablations.pdf}
+\caption{Supplementary high-correlation sensitivity results. Left: changing the certificate interval with $\rho=1$ for ADMM. Right: ADMM penalty sensitivity at $q=1$. Error bars are sample SD across five seeds; times include preparation and diagnostics.}
+\label{fig:ablations}
+\end{figure}
+
+\section{Limitations and conclusions}
+This study uses modest dense designs, one synthetic dimension/noise level, and one relative regularization value. Five synthetic seeds support descriptive variability, not broad statistical significance claims. No large sparse design, underdetermined regime, or hyperparameter search is included. CD is not a compiled, screened, pathwise production solver; the comparison therefore should not be generalized to optimized libraries. ADMM's favorable factorization regime may disappear as $p$ grows. Diagnostics are deliberately frequent, and time measurements are machine- and implementation-dependent. The reserved validation sets do not tune the chosen regularization, so prediction quality is not claimed to be optimal.
+
+Within these boundaries, correlation increases certified optimization effort and worsens recovery under the chosen regularization protocol. ADMM at $\rho=1$ is fastest on the synthetic and Superconductivity tasks, whereas CD is fastest on Diabetes. The diagnostic-frequency ablation reduces the apparent ISTA--CD timing separation, and the penalty sensitivity can reverse ADMM's ranking. A useful comparison therefore requires a shared objective and accuracy as well as explicit certification policy and parameters.
+
+\clearpage
+\begin{thebibliography}{13}
+\bibitem[Beck and Teboulle(2009)]{beck2009} A. Beck and M. Teboulle. A fast iterative shrinkage-thresholding algorithm for linear inverse problems. \emph{SIAM Journal on Imaging Sciences}, 2(1):183--202, 2009. \url{https://doi.org/10.1137/080716542}.
+\bibitem[Boyd et~al.(2011)]{boyd2011} S. Boyd, N. Parikh, E. Chu, B. Peleato, and J. Eckstein. Distributed optimization and statistical learning via the alternating direction method of multipliers. \emph{Foundations and Trends in Machine Learning}, 3(1):1--122, 2011. \url{https://stanford.edu/~boyd/papers/admm_distr_stats.html}.
+\bibitem[Friedman et~al.(2010)]{friedman2010} J. Friedman, T. Hastie, and R. Tibshirani. Regularization paths for generalized linear models via coordinate descent. \emph{Journal of Statistical Software}, 33(1):1--22, 2010. \url{https://doi.org/10.18637/jss.v033.i01}.
+\bibitem[Hamidieh(2018)]{hamidieh2018} K. Hamidieh. Superconductivty Data [Dataset]. UCI Machine Learning Repository, 2018. CC BY 4.0. \url{https://doi.org/10.24432/C53P47}.
+\bibitem[Massias et~al.(2018)]{massias2018} M. Massias, A. Gramfort, and J. Salmon. Celer: a fast solver for the Lasso with dual extrapolation. \emph{Proceedings of Machine Learning Research}, 80:3315--3324, 2018. \url{https://proceedings.mlr.press/v80/massias18a.html}.
+\bibitem[Moufad et~al.(2025)]{moufad2025} B. Moufad, P.-A. Bannier, Q. Bertrand, Q. Klopfenstein, and M. Massias. skglm: improving scikit-learn for regularized generalized linear models. \emph{Journal of Machine Learning Research}, 26(149):1--6, 2025. \url{https://jmlr.org/papers/v26/24-0008.html}.
+\bibitem[Ndiaye et~al.(2017)]{ndiaye2017} E. Ndiaye, O. Fercoq, A. Gramfort, and J. Salmon. Gap Safe screening rules for sparsity enforcing penalties. \emph{Journal of Machine Learning Research}, 18(128):1--33, 2017. \url{https://jmlr.org/papers/v18/16-577.html}.
+\bibitem[Parikh and Boyd(2014)]{parikh2014} N. Parikh and S. Boyd. Proximal algorithms. \emph{Foundations and Trends in Optimization}, 1(3):123--231, 2014. \url{https://stanford.edu/~boyd/papers/prox_algs.html}.
+\bibitem[scikit-learn(2026a)]{sklearndata} scikit-learn developers. \texttt{load\_diabetes}: dataset documentation. Accessed November 19, 2026. \url{https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_diabetes.html}.
+\bibitem[scikit-learn(2026b)]{sklearnlasso} scikit-learn developers. \texttt{Lasso}: objective and API documentation. Accessed November 19, 2026. \url{https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html}.
+\bibitem[Tibshirani(1996)]{tibshirani1996} R. Tibshirani. Regression shrinkage and selection via the lasso. \emph{Journal of the Royal Statistical Society: Series B}, 58(1):267--288, 1996. \url{https://doi.org/10.1111/j.2517-6161.1996.tb02080.x}.
+\bibitem[Tseng(2001)]{tseng2001} P. Tseng. Convergence of a block coordinate descent method for nondifferentiable minimization. \emph{Journal of Optimization Theory and Applications}, 109:475--494, 2001. \url{https://doi.org/10.1023/A:1017501703105}.
+\bibitem[Zhao and Huo(2023)]{zhao2023} Y. Zhao and X. Huo. A survey of numerical algorithms that can solve the Lasso problems. arXiv:2303.03576, 2023. \url{https://arxiv.org/abs/2303.03576}.
+\end{thebibliography}
+\end{document}

@@ -1,0 +1,26 @@
+{
+  "stage": "posthoc_sensitivity_analysis",
+  "formal_source": "formal_20261119T120859Z",
+  "all_converged": true,
+  "timed_solves": 210,
+  "source_sha256": {
+    "run_ablations.py": "ed1cbe8814e57a3ac273c5ccc6c01a5b51f115ea1a3302f755319d3c86543b06",
+    "study_io.py": "0325acdbbba04ce3db021526dea65d2d52bf446cc21e00d9c0ced77c1de73e30",
+    "solvers.py": "4295060634a171463905b608b628593d5aaf569f085c240c49210c14f20e5a0d",
+    "run_pilot.py": "ff25ef97e11d21591a965fd2c2587de15f3650970a51448836c72aea90ec4193",
+    "ablation_protocol.json": "428ca9919c2726405f6770e5820602089544a7b721e8155186c1a3529d599dc8"
+  },
+  "threadpools": [
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/Users/tim/subjects/optimization/assignment/individual_assignment/lasso_study/.venv/lib/python3.13/site-packages/sklearn/.dylibs/libomp.dylib",
+      "version": null
+    }
+  ],
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.5",
+  "max_relative_gap": 9.994269543164503e-07
+}

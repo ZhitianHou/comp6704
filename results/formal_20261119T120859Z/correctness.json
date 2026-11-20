@@ -1,0 +1,35 @@
+[
+  {
+    "check": "orthonormal_closed_form",
+    "algorithm": "ISTA",
+    "max_error": 5.551115123125783e-17
+  },
+  {
+    "check": "orthonormal_closed_form",
+    "algorithm": "CD",
+    "max_error": 2.7755575615628914e-17
+  },
+  {
+    "check": "orthonormal_closed_form",
+    "algorithm": "ADMM",
+    "max_error": 3.638200851696638e-12
+  },
+  {
+    "check": "sklearn_correlated",
+    "algorithm": "ISTA",
+    "objective_error": 0.0,
+    "max_coefficient_error": 3.6022185234685367e-10
+  },
+  {
+    "check": "sklearn_correlated",
+    "algorithm": "CD",
+    "objective_error": 0.0,
+    "max_coefficient_error": 1.1231648111564851e-09
+  },
+  {
+    "check": "sklearn_correlated",
+    "algorithm": "ADMM",
+    "objective_error": 0.0,
+    "max_coefficient_error": 2.5079016641171847e-10
+  }
+]

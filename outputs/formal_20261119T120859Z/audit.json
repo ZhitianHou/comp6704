@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "rows": 162,
+  "source_hashes_verified": true,
+  "processed_data_regenerated_and_checked": true,
+  "persisted_arrays_and_certificates_checked": true,
+  "note": "Compact archive excludes npz arrays; local audit includes them."
+}

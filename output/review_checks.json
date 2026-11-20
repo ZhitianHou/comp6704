@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "unequal_scale_sklearn_and_split_QP",
+      "algorithm": "ISTA",
+      "objective_error": 3.214095656289828e-14
+    },
+    {
+      "check": "unequal_scale_sklearn_and_split_QP",
+      "algorithm": "CD",
+      "objective_error": 3.214095656289828e-14
+    },
+    {
+      "check": "unequal_scale_sklearn_and_split_QP",
+      "algorithm": "ADMM",
+      "objective_error": 3.214095656289828e-14
+    },
+    {
+      "check": "rank_deficient_underdetermined",
+      "algorithm": "ISTA"
+    },
+    {
+      "check": "rank_deficient_underdetermined",
+      "algorithm": "CD"
+    },
+    {
+      "check": "rank_deficient_underdetermined",
+      "algorithm": "ADMM"
+    },
+    {
+      "check": "zero_column_and_iteration_cap",
+      "passed": true
+    },
+    {
+      "check": "frozen_formal_numerical_replay",
+      "problem_algorithm_combinations": 54,
+      "coefficients_bitwise_identical": true,
+      "original_timing_records_untouched": true
+    },
+    {
+      "check": "nonconvergence_and_custom_path",
+      "passed": true
+    }
+  ]
+}

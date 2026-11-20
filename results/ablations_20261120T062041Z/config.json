@@ -1,0 +1,43 @@
+{
+  "status": "FROZEN_BEFORE_SUPPLEMENTARY_RUN",
+  "design_date_local": "2026-11-20",
+  "stage": "posthoc_sensitivity_analysis",
+  "motivation": "Investigate diagnostic overhead and ADMM penalty sensitivity observed in original formal study; no test-based tuning",
+  "correlations": [
+    0.0,
+    0.9
+  ],
+  "data_seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "diagnostic_frequencies": [
+    1,
+    10
+  ],
+  "algorithms": [
+    "ISTA",
+    "CD",
+    "ADMM"
+  ],
+  "rho_frequency_study": 1.0,
+  "rho_high_correlation": [
+    0.1,
+    1.0,
+    10.0
+  ],
+  "rho_study_check_every": 1,
+  "relative_gap_tol": 1e-06,
+  "max_iter": 20000,
+  "timing_repetitions": 3,
+  "expected_unique_settings": 14,
+  "expected_timed_solves": 210,
+  "baseline_handling": "rho=1/check_every=1 baseline is shared across the two analyses within this run; all compared timings are measured contemporaneously",
+  "main_protocol": "unchanged; no new parameters selected for primary results",
+  "diagnostic_cost": "Every scheduled check uses the same feasible dual gap. Check at iteration zero and at cap even when not divisible by frequency.",
+  "aggregation": "median over 3 timings per data problem/setting; then mean and sample SD across 5 data seeds",
+  "scope": "Synthetic n_train=1000,p=200 from original frozen formal study; no additional dataset or model tuning"
+}

@@ -1,0 +1,39 @@
+{
+  "created_utc": "20261119T120859Z",
+  "python": "3.13.13 | packaged by Anaconda, Inc. | (main, Apr 14 2026, 06:14:06) [Clang 20.1.8 ]",
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.5",
+  "scipy": "1.18.1",
+  "sklearn": "1.9.1",
+  "threadpools": [
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/Users/tim/subjects/optimization/assignment/individual_assignment/lasso_study/.venv/lib/python3.13/site-packages/sklearn/.dylibs/libomp.dylib",
+      "version": null
+    }
+  ],
+  "native_thread_environment": {
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "thread_note": "Single native thread requested; Apple Accelerate not fully enumerated.",
+  "source_sha256": {
+    "source/solvers.py": "69abb68e128c2f2c839080f877af79ac4001805bf7dd5f97088f25da09d4e9ea",
+    "source/run_formal.py": "7c4ea5702486dfc11de76bce1aba7d1ee59d05741e76bbe6ac3b3b40c84492fe",
+    "source/formal_protocol.json": "2aba7ef96b8f96108798241d94d46671b71e9b30c9770dd53a453ad227469f7a",
+    "source/requirements-lock.txt": "4bbc59db21288be5cac6c9ced9e9ede20212e1e56e81613606d22ae1c5f7373f",
+    "source/run_pilot.py": "2ab55b8f531b5ae6962d1b6d9abfd396293a643528607128b287c43b59629f0b"
+  },
+  "all_converged": true,
+  "timed_solves": 162,
+  "problems": 18,
+  "correctness_and_repeat_checks_passed": true,
+  "total_wall_s": 5.05849420838058,
+  "max_relative_gap": 9.994269543164503e-07,
+  "max_objective_delta": 1.3852848042006372e-06
+}

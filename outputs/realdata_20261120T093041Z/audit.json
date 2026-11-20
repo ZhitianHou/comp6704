@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "timed_solves": 27,
+  "raw_checksums_verified": true,
+  "source_hashes_verified": true,
+  "split_reconstruction_verified": true,
+  "duplicate_feature_groups_disjoint": true,
+  "training_only_scaling_verified": true,
+  "persisted_coefficients_checked": true
+}

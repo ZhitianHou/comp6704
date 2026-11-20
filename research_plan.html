@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>LASSO：模型、算法与实验方案</title>
+<style>
+body{font:16px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#243047;background:#f4f6fa;margin:0}main{max-width:980px;margin:36px auto;background:white;padding:42px 52px;border-radius:14px}h1{font-size:29px;line-height:1.4}h2{margin-top:35px;color:#17476b}h3{margin-top:25px}pre{font:15px/1.8 ui-monospace,monospace;white-space:pre-wrap;background:#eff4f8;padding:18px;border-radius:8px;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:10px;border:1px solid #dbe2e9;text-align:left}th{background:#edf3f8}a{color:#1765a1}.note{border-left:4px solid #3688a8;padding:10px 16px;background:#edf7fb}small{color:#627083}code{background:#edf3f8;padding:2px 4px}@media print{body{background:white}main{margin:0;padding:0}h2,h3{break-after:avoid}pre,table{break-inside:avoid}}
+</style><main>
+<h1>LASSO 稀疏回归：数学模型、三种算法与实验方案</h1>
+<p><b>HOU Zhitian · 26017658r · COMP6704 Individual Assignment</b><br><small>2026-11-19；研究设计与试跑阶段，尚非正式实验报告。</small></p>
+<p class="note">研究问题：特征相关性如何影响 ISTA、循环坐标下降与 ADMM 的收敛效率，以及 LASSO 本身的稀疏恢复效果？区分“求解器多快到达同一个解”与“该模型是否恢复真实系数”。选题研究非光滑凸优化，与小组神经网络训练优化器项目区分。</p>
+
+<h2>1. 数学模型与预处理</h2>
+<p>训练数据 X ∈ ℝ<sup>n×p</sup>、y ∈ ℝ<sup>n</sup>。原始模型包括不受惩罚的截距 b：</p>
+<pre>minimize over b,β:  (1/(2n)) ‖y − b1 − Xβ‖₂² + λ Σⱼ sⱼ|βⱼ|,   λ &gt; 0.
+sⱼ 为训练集特征标准差；惩罚定义在标准化坐标 wⱼ=sⱼβⱼ 中。</pre>
+<p>只用训练集计算每列均值 μ、总体标准差 s（ddof=0）及目标均值 ȳ；删除零方差列或将其系数固定为 0。令 X̃<sub>ij</sub>=(X<sub>ij</sub>−μ<sub>j</sub>)/s<sub>j</sub>、ỹ=y−ȳ。下文 X、y 均代表中心化和标准化后的数据，求解：</p>
+<pre>F(w) = f(w) + g(w)
+f(w) = ‖Xw − y‖₂²/(2n),      g(w) = λ‖w‖₁.
+∇f(w) = Xᵀ(Xw − y)/n,       L = ‖X‖₂²/n.
+Sτ(v)ⱼ = sign(vⱼ) max(|vⱼ| − τ, 0).
+λmax = ‖Xᵀy/n‖∞；λ ≥ λmax 时 w = 0 为最优解。</pre>
+<p>验证与测试必须沿用训练统计量。原尺度系数为 β<sub>j</sub>=w<sub>j</sub>/s<sub>j</sub>，截距 b=ȳ−μᵀβ。合成数据若由原尺度真值 β* 生成，标准化坐标中的真值是 w*=s⊙β*，系数恢复误差在同一坐标下计算。</p>
+<p>λ&gt;0 保证目标连续且强制有界，最优解存在。问题凸；若 X 满列秩，平方损失严格凸，解唯一。p&gt;n 时一般不保证系数唯一，不能只靠系数一致判断正确性。LASSO 的精确支持恢复还需要额外的设计矩阵、信号与噪声条件，不能由“凸优化收敛”推出。</p>
+
+<h2>2. 三种算法：初始化、更新与计算代价</h2>
+<h3>2.1 ISTA：近端梯度</h3>
+<p>将平方损失在当前点作一阶近似并加入二次上界，保留 L₁ 项，子问题可由软阈值精确求解。初始化 w⁰=0，使用 t=1/L：</p>
+<pre>wᵏ⁺¹ = argmin_v {∇f(wᵏ)ᵀ(v−wᵏ) + ‖v−wᵏ‖₂²/(2t) + λ‖v‖₁}
+      = S(tλ)(wᵏ − t Xᵀ(Xwᵏ−y)/n).</pre>
+<p>凸且梯度 L-Lipschitz，0&lt;t≤1/L 时目标不增，基本目标差界为 F(wᵏ)−F*≤‖w⁰−w*‖²/(2tk)。该界不是所有实验曲线都必须严格呈现 1/k 的等式。每步两次矩阵向量乘，O(np)；除输入外额外内存 O(n+p)。本实现用精确谱范数确定 L，小型稠密矩阵的 SVD 准备成本 O(np·min(n,p)) 计入时间。</p>
+<h3>2.2 循环坐标下降：每次精确更新一个变量</h3>
+<p>初始化 w=0、r=y。按 j=1,…,p 顺序更新，所有表达式使用当前最新的其他坐标：</p>
+<pre>aⱼ = ‖Xⱼ‖₂²/n,
+cⱼ = Xⱼᵀ(r + Xⱼwⱼ)/n,
+wⱼ(new) = Sλ(cⱼ)/aⱼ,
+r ← r − Xⱼ(wⱼ(new) − wⱼ(old)).</pre>
+<p>推导：固定其他系数，标量子问题为 a<sub>j</sub>v²/2−c<sub>j</sub>v+λ|v|，对 v&gt;0、v&lt;0、v=0 分类得到软阈值公式。将一次完整 p 坐标扫描称为一个外层迭代。非零列、凸可微平方损失与坐标可分凸惩罚满足标准循环坐标下降的收敛条件。一次扫描 O(np)，额外内存 O(n+p)。代码是 Python 坐标循环配合 NumPy 向量运算，其耗时也反映语言与实现开销。</p>
+<h3>2.3 ADMM：变量分裂</h3>
+<pre>minimize f(x)+λ‖z‖₁, subject to x=z.
+初始化 x⁰=z⁰=u⁰=0，缩放对偶变量 u；固定 ρ&gt;0：
+
+(XᵀX/n + ρI)xᵏ⁺¹ = Xᵀy/n + ρ(zᵏ − uᵏ),
+zᵏ⁺¹ = S(λ/ρ)(xᵏ⁺¹ + uᵏ),
+uᵏ⁺¹ = uᵏ + xᵏ⁺¹ − zᵏ⁺¹.
+
+原始残差 rᵏ = xᵏ−zᵏ；对偶残差 sᵏ = ρ(zᵏ−zᵏ⁻¹).</pre>
+<p>通过一次 Cholesky 分解和每次两个三角求解计算 x，禁止每轮显式求逆。准备成本 O(np²+p³)，每轮 O(p²)，额外存储 O(p²)。选择 p≤200 控制工作量。固定 ρ=1，不使用过松弛或自适应 ρ。在闭、真、凸函数且鞍点存在等标准条件下，ADMM 原始残差趋零、目标趋向最优；不能宣称任意非凸问题也成立。</p>
+<p class="note">ADMM 原始可行点使用 w=z 评估统一目标 F(z)。不把 ‖Xx−y‖²/(2n)+λ‖z‖₁ 当作原问题在某一个 w 上的目标值。残差只用于辅助诊断，主停止条件与其他算法一致。</p>
+
+<h2>3. 统一精度、正确性与公平比较</h2>
+<p>使用对偶可行证书，不依赖未知精确最优值。由任意 w 构造：</p>
+<pre>v = (y−Xw)/n,
+θ = v / max(1, ‖Xᵀv‖∞/λ),      因此 ‖Xᵀθ‖∞ ≤ λ.
+D(θ) = yᵀθ − (n/2)‖θ‖₂²,
+G(w) = F(w) − D(θ) ≥ F(w) − F* ≥ 0,
+relative_gap = G(w)/max(F(0), 10⁻¹⁵).</pre>
+<p>预设 relative_gap≤10⁻⁶ 为统一停止条件，最多 20,000 个外层迭代；达不到就标记未收敛，达标时间留空，不写成 0。另记录 KKT 残差：活动坐标检查 |∇f(w)<sub>j</sub>+λsign(w<sub>j</sub>)|，零坐标检查 max(|∇f(w)<sub>j</sub>|−λ,0)，取最大值并除 λmax。</p>
+<ul><li>每个问题三种算法使用同一 X、y、λ 和零初始化。CD 一轮是一遍全部坐标，迭代数只作辅助，主要比较耗时。</li>
+<li>浮点数统一 float64，通过原生库环境变量和 threadpoolctl 请求单线程，随机化运行次序。Apple Accelerate 的实际线程数不能通过该接口完整枚举，环境设置与此限制一并记录。计时涵盖算法准备工作；共同预处理、数据生成、外部参考解、绘图不计入求解时间。</li>
+<li>每轮计算相同证书并记录时间；同时保存 setup_s、update_s、diagnostic_s 和 total_s，报告检查开销，避免把微秒级试跑时间解释成固有算法优劣。</li>
+<li>正确性验证包括正交设计解析软阈值解、λ≥λmax 的零解、相关设计上与 sklearn Lasso 交叉核对。sklearn 的 alpha 对应本目标 λ，fit_intercept=False。它只是参考，不列作第四种待比较算法。</li>
+<li>正式结果每个问题重复计时 3 次取中位数；跨数据种子再报告均值与样本 SD。三个计时重复不冒充三个独立数据样本。</li></ul>
+
+<h2>4. 控制工作量的实验方案</h2>
+<h3>4.1 合成数据：主实验与机制实验合并</h3>
+<pre>协方差 Σᵢⱼ = c^|i−j|，c∈{0,0.5,0.9}.
+等价生成：Xⱼ = cXⱼ₋₁ + √(1−c²)Zⱼ，Z 独立标准正态。
+β* 随机选 s=20 个非零位置，系数为 ±1；ε∼N(0,0.5²I)。
+y = Xβ* + ε.
+正式建议：训练 n=1000，测试 n=1000，p=200。
+λ=0.05 λmax，数据种子 {1,2,3,4,5}。</pre>
+<p>同一种子不同 c 使用匹配的潜在正态样本、真实支持、符号和噪声，以减少无关随机变化。c 改变也会改变信号分布和 λmax；因此结果描述为该预设相对正则化协议下的整体变化，不声称纯粹隔离了条件数的单独因果效应。记录标准化 X 的条件数及实际相关性作为诊断。</p>
+<p>规模：3 档相关性×5 数据种子×3 算法=45 次独立问题/算法组合；每次计时重复 3 次，共 135 次求解。仅一个噪声强度、一个维度、一个 λ 比例，不做全组合调参。主要指标是相对对偶间隙、达标时间；次要指标是测试 MSE、‖w−w*‖₂/‖w*‖₂、支持集 F1（预先固定 |w<sub>j</sub>|&gt;10⁻⁶）。正则化产生偏差，不期待系数误差趋零；充分收敛后不同算法的预测/恢复指标应接近。</p>
+<h3>4.2 真实数据：小型补充</h3>
+<p>Diabetes：442 样本、10 特征，使用 sklearn 随附原始数据 scaled=False；先划分再标准化。训练/验证/测试约 70%/15%/15%，建议种子 1/2/3。验证集在当前固定 λ 协议下保留不用，测试只用于结果评价。它没有已知真系数，不报告恢复误差与支持 F1，也不据此提出医学结论。3 划分×3 算法=9 个组合，计时重复 3 次共 27 次求解。</p>
+<h3>4.3 当前小规模试跑</h3>
+<p>合成 n=300、p=60、s=6、3 档相关性、种子 11/12：18 次；额外 n=1000、p=200、c=0.9、种子 11 的预算探针：3 次；Diabetes 种子 11：3 次。总计 24 次，每次只计时一次，另有解析及外部实现正确性检查。所有结果属于 pilot，不混入正式五种子主表。</p>
+<p>本轮不做正式全量实验。试跑后若 20,000 次上限不足或 ρ=1 明显不合适，再只用 pilot 数据作有限调整，记录原因并在正式运行前冻结；不根据测试集选择算法参数。</p>
+
+<h2>5. 报告与交付的最小范围</h2>
+<p>报告最多 10 页，拟分配：摘要和引言约 1 页；相关工作约 1 页；模型约 1 页；三算法及条件/复杂度约 2 页；实验设置约 1 页；实验与分析约 2 页；局限、结论及参考文献使用剩余空间。是否参考文献计入页数以课程进一步说明为准，当前保守控制总页数。</p>
+<p>拟交付三张主图：相关性分面下 gap 对迭代/时间曲线；达标时间跨种子汇总；恢复误差/支持 F1 随相关性变化。两张表：方法复杂度与条件；合成及真实数据的最终指标。代码保留配置、版本、分割、原始日志与数据生成种子，提供 README 和一条复现命令。经典方法比较不包装成新算法贡献。</p>
+
+<h2>6. 已核验的基础资料</h2>
+<ol>
+<li>Tibshirani (1996), Regression Shrinkage and Selection via the Lasso. <a href="https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/j.2517-6161.1996.tb02080.x">期刊 DOI</a>。</li>
+<li>Parikh &amp; Boyd (2014), Proximal Algorithms, Foundations and Trends in Optimization 1(3), 123–231. <a href="https://stanford.edu/~boyd/papers/prox_algs.html">作者页面</a>。</li>
+<li>Friedman, Hastie &amp; Tibshirani (2010), Regularization Paths for Generalized Linear Models via Coordinate Descent, JSS 33(1), 1–22. <a href="https://www.jstatsoft.org/article/view/v033i01">原论文</a>。</li>
+<li>Boyd et al. (2011), Distributed Optimization and Statistical Learning via the Alternating Direction Method of Multipliers. <a href="https://stanford.edu/~boyd/papers/admm_distr_stats.html">作者页面</a>；<a href="https://web.stanford.edu/~boyd/papers/admm/lasso/lasso.html">LASSO 参考实现</a>。其未除 n 的目标与本文缩放不同，公式已按本文目标重新缩放。</li>
+<li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html">sklearn Lasso 目标与接口</a>；<a href="https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_diabetes.html">Diabetes 数据说明</a>。</li>
+</ol>
+<p><small>以上是核心基础资料，尚不是完整或最新文献综述。正式写作前补充少量近期综述/进展，并确认收敛论述的具体假设。当前研究设计不以发明新算法或大规模数据为目标。</small></p>
+</main></html>

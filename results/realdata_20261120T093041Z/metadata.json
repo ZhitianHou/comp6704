@@ -1,0 +1,35 @@
+{
+  "stage": "additional_real_dataset",
+  "dataset": "UCI Superconductivity",
+  "timed_solves": 27,
+  "all_converged": true,
+  "max_relative_gap": 9.999412335890887e-07,
+  "source_sha256": {
+    "study_io.py": "0325acdbbba04ce3db021526dea65d2d52bf446cc21e00d9c0ced77c1de73e30",
+    "solvers.py": "4295060634a171463905b608b628593d5aaf569f085c240c49210c14f20e5a0d",
+    "data_superconductivity.py": "00992c2c63fb83cae8788ea309ed3ab65a1e3be0badbaca2aa7a31a24aa6ca01",
+    "requirements-lock.txt": "4bbc59db21288be5cac6c9ced9e9ede20212e1e56e81613606d22ae1c5f7373f",
+    "run_pilot.py": "ff25ef97e11d21591a965fd2c2587de15f3650970a51448836c72aea90ec4193",
+    "realdata_protocol.json": "4b2e5b789baa447556f371b33ec172d943dab425289e973769ec0ca5bbdaf6f3",
+    "run_realdata.py": "c60e0c08daa234a3142c01667336fbd97c1aae1e74031d8262bf85d1639fea09"
+  },
+  "raw_archive_sha256": "87f4490d73390ff94ee01dbf0d7d32abc80b22f2c803d471765cfc46a9f6371e",
+  "raw_csv_sha256": "4dfb6e3a1f6ffd969e5a5e42f093c4800d1e2a6c8b1e309f8fcd9f23d86952f3",
+  "feature_groups": 15170,
+  "rows": 21263,
+  "features": 81,
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.5",
+  "threadpools": [
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/Users/tim/subjects/optimization/assignment/individual_assignment/lasso_study/.venv/lib/python3.13/site-packages/sklearn/.dylibs/libomp.dylib",
+      "version": null
+    }
+  ],
+  "native_threads_requested": 1,
+  "wall_s": 18.378736124839634
+}

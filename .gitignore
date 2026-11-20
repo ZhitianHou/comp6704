@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.npz
+data/
+revisions/
+tmp/
+output/*.zip
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/main.pdf
+.DS_Store
