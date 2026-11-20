@@ -48,7 +48,8 @@ def main():
     result=dict(passed=True,timed_solves=len(rows),history_schedules_verified=True,
                 source_hashes_verified=True,persisted_coefficients_checked=coefs is not None,
                 posthoc_design=True,primary_logs_unchanged=True)
-    out=ROOT/'outputs'/source.name/'audit.json'
+    out=ROOT/'output'/'validation'/f'{source.name}_audit.json'
+    out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,indent=2))
     print(json.dumps(result,indent=2))
 

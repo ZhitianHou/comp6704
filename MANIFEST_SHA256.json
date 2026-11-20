@@ -1,8 +1,8 @@
 {
-  ".gitignore": "a615c74bdba23489a619f1616ba04df81fffdb1d3e86dd737c9ce472407f200a",
-  "README.md": "598208cba627cfd990a21850404720109b40087cf4c4ebc2fecbfdc39391a566",
+  ".gitignore": "0ad160eb28eccbaff10204a3bcc5e1bf5b37e457bd3fba3de0534cede2029835",
+  "README.md": "dceef33ad710d57ae28d9c14549456392955d25f6ef4658416af91ba52ebc286",
   "ablation_protocol.json": "428ca9919c2726405f6770e5820602089544a7b721e8155186c1a3529d599dc8",
-  "check_repository.py": "f4692b1e630323167f19aec1ba195dfa2ce14e0f96e226cd6d609649e583e135",
+  "check_repository.py": "2d471f1ff302b76328c71e1eb22fedd6e83d9feeb8387b3bfaf7aed62be00b9e",
   "data_superconductivity.py": "6b6f6ae72a056b0781d3c17eccfaa3e0cf34d75f41bf75c3790e179278622a9d",
   "export_ablations.py": "35df0f99878ebeafee944bf29509752da0fac827818a2c7c7ac845c840d18da8",
   "export_formal.py": "0d8b33a58d87dc808efacc7b535f0eebe9e5e74d533de353b6cec74c14aacdbd",
@@ -94,14 +94,14 @@
   "results/realdata_20261120T093041Z/splits/seed1.json": "ca4f4a58baf8df780a366865d07ebf6504e30f77a1d80f01890e93683adab4ed",
   "results/realdata_20261120T093041Z/splits/seed2.json": "c1046c163fd9507e193062b40dc6016198f8de0a670f0e5fb3845b534e9ba6f8",
   "results/realdata_20261120T093041Z/splits/seed3.json": "5cf337c36717c0e41fc12328b5186545a1ff162d7e55f1fcb8319a283b23c896",
-  "review_checks.py": "9de57e74111cff79d6fb5f4c430f8e2ca0cce4fd9bf6a7deea79dfa346987eb7",
+  "review_checks.py": "18f3ec13ae23a2372714eada8a17494bc3161194e84ad883c2ba82e5cc174c02",
   "run_ablations.py": "4ff07bd24489832c56105ca872a63f52f1cd6246a67b7ab7687d8a166a227a50",
   "run_formal.py": "0a68d83c37fac3e11cf6042d742c41c6911097fc3aa54aa918ab5b7062ba0f47",
   "run_realdata.py": "3e6cfcaa6cd97bba6dff59cb8942ac81996604741b5023463e7f5e62dc8435b3",
   "solvers.py": "4295060634a171463905b608b628593d5aaf569f085c240c49210c14f20e5a0d",
   "study_common.py": "702e570e203caedc4eac0a4e012f275f1349efb769cacc454de93b3ab2f481f3",
   "study_io.py": "0325acdbbba04ce3db021526dea65d2d52bf446cc21e00d9c0ced77c1de73e30",
-  "verify_ablations.py": "7a14a4da673d436a066b2668a16f26bffb9f10feead53343c9510149b18faa4f",
-  "verify_formal.py": "9fbc380aa1c6191d1fc522b00704bfc423c6c6134e6a84a470e0ad20e6e2d3e3",
-  "verify_realdata.py": "5b02fd6982d8b9fa1283de0dd6dbbfa5118e7d41288eb24ba3feab828c6394b0"
+  "verify_ablations.py": "0b77ea3f228c60d50c409c22a881766f0ade715890ee173f81163057f4cba876",
+  "verify_formal.py": "1e326db7bec2279b304f9d9ac451fe0ed28e491edcd36763470e6d0152bde2f3",
+  "verify_realdata.py": "2cfbecaeb439e1d9acdba617ca267f3bd110f566177b6783aee5369e2ee8bfec"
 }

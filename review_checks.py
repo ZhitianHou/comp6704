@@ -110,7 +110,8 @@ def main():
         check=subprocess.run([sys.executable,str(ROOT/'export_formal.py'),'--run',str(p)],capture_output=True,text=True)
         assert check.returncode!=0 and 'requires all runs to converge' in check.stderr
     results.append(dict(check='nonconvergence_and_custom_path',passed=True))
-    out=ROOT/'output'/'review_checks.json'
+    out=ROOT/'output'/'validation'/'review_checks.json'
+    out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(dict(passed=True,checks=results),indent=2))
     print(out)
     print(json.dumps(dict(passed=True,checks=results),indent=2))

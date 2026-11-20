@@ -55,7 +55,7 @@ The paper source points to the published output directories. The submission-read
 - `study_common.py`: training-only preprocessing, matched synthetic data and basic correctness checks. Native thread requests are applied before numerical imports.
 - `run_*.py`, `export_*.py`, `verify_*.py`: experiment runners, saved-result exports and audits for the primary, ablation and real-data studies.
 - `review_checks.py`: independent numerical checks against scikit-learn and a split-variable quadratic program, including unequal feature scales, rank deficiency, zero columns and iteration caps.
-- `check_repository.py`: published-file checksums, isolated regeneration of numerical tables and paper compilation. It does not rerun experiments.
+- `check_repository.py`: source/raw-record/submission-PDF checksums, isolated regeneration of numerical tables and paper compilation. Generated plots and audit JSON files are excluded from strict hash checks; numerical tables must reproduce exactly. It does not rerun experiments.
 
 ```sh
 .venv/bin/python review_checks.py
@@ -73,7 +73,7 @@ The paper source points to the published output directories. The submission-read
 .venv/bin/python verify_realdata.py
 ```
 
-The auditors identify whether excluded coefficient arrays were available. The published audit JSON files record the original local audit, which included those arrays. Fresh audits without them have a narrower scope.
+The auditors identify whether excluded coefficient arrays were available. The published audit JSON files record the original local audit, which included those arrays. Fresh audits without them have a narrower scope and are written to the ignored `output/validation/` directory, preserving the published audits. Exporting saved results or running these audits does not invalidate the repository check.
 
 ## Protocol and interpretation
 

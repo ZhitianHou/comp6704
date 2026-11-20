@@ -6,6 +6,7 @@ __pycache__/
 revisions/
 tmp/
 output/*.zip
+output/validation/
 report/*.aux
 report/*.log
 report/*.out

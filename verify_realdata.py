@@ -42,7 +42,9 @@ def main():
                 source_hashes_verified=True,split_reconstruction_verified=True,
                 duplicate_feature_groups_disjoint=True,training_only_scaling_verified=True,
                 persisted_coefficients_checked=arrays is not None)
-    (ROOT/'outputs'/source.name/'audit.json').write_text(json.dumps(result,indent=2))
+    audit=ROOT/'output'/'validation'/f'{source.name}_audit.json'
+    audit.parent.mkdir(parents=True,exist_ok=True)
+    audit.write_text(json.dumps(result,indent=2))
     print(json.dumps(result,indent=2))
 
 

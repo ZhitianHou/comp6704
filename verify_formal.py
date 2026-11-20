@@ -62,7 +62,9 @@ def main():
                 processed_data_regenerated_and_checked=True,
                 persisted_arrays_and_certificates_checked=arrays_present,
                 note='The repository excludes processed npz arrays; full coefficient checks require regenerated or locally retained arrays.')
-    (out/'audit.json').write_text(json.dumps(result,indent=2))
+    audit=ROOT/'output'/'validation'/f'{source.name}_audit.json'
+    audit.parent.mkdir(parents=True,exist_ok=True)
+    audit.write_text(json.dumps(result,indent=2))
     print(json.dumps(result,indent=2))
 
 
