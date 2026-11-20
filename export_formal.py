@@ -1,14 +1,16 @@
 """Aggregate and visualize saved formal data; never launches a solver."""
-from run_pilot import ROOT, np, plt, MaxNLocator
+from study_common import ROOT, np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from study_io import write_csv, resolve_run
 import argparse
 from pathlib import Path
 from collections import defaultdict
 import csv
 import hashlib
-import html
 import json
-import shutil
 
 ALGOS=['ISTA','CD','ADMM']
 COLORS=dict(ISTA='#377eb8',CD='#e07a26',ADMM='#2b995b')
@@ -148,9 +150,8 @@ def main():
     report+='<h2>恢复与泛化</h2><p>本图使用独立高精度参考解，隔离模型统计行为与求解器停止误差。三算法达到相同目标精度后，预测与恢复指标应接近；不能把更快收敛解释为改变了 LASSO 模型的统计能力。</p><img src="formal_recovery.png" alt="统计恢复指标">'
     report+='<h2>分析边界</h2><ul><li>研究的是这套小型稠密 NumPy/SciPy 实现，不是所有库或硬件上的普遍速度排名。CD 使用 Python 循环；ADMM 缓存稠密 Cholesky；ISTA 的精确谱范数准备成本已计入。</li><li>逐轮证书占用的时间单独列出，不应被误解为算法更新本身的全部成本。小型真实数据任务尤其容易受系统计时噪声影响。</li><li>相关性提高同时改变条件数、信号分布与 λmax。本研究采用 λ=0.05λmax 的固定相对正则化协议，不声称单独识别了条件数的因果效应。</li><li>没有大规模稀疏数据、过参数化模型或 λ 搜索；真实数据的验证划分保留未用，未根据测试结果调参。Diabetes 只补充优化求解实验，不用于临床结论。</li></ul>'
     report+=f'<p>所有求解的最大相对对偶间隙：{meta["max_relative_gap"]:.3e}；相对各自 sklearn 参考解的最大目标值差：{meta["max_objective_delta"]:.3e}。</p>'
-    report+=f'<p><a href="aggregate.csv">正式汇总 CSV</a> · <a href="per_problem.csv">54 行逐问题中位数</a> · <a href="../../results/{source.name}/raw_runs.csv">162 行原始计时</a> · <a href="../../results/{source.name}/metadata.json">环境与验证状态</a> · <a href="../../research_plan.html">模型与实验方案</a></p></html>'
+    report+=f'<p><a href="aggregate.csv">正式汇总 CSV</a> · <a href="per_problem.csv">54 行逐问题中位数</a> · <a href="../../results/{source.name}/raw_runs.csv">162 行原始计时</a> · <a href="../../results/{source.name}/metadata.json">环境与验证状态</a></p></html>'
     (out/'formal_report.html').write_text(report)
-    shutil.copy2(ROOT/'export_formal.py',out/'export_formal.py')
     manifest={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in source.rglob('*') if p.is_file()}
     (out/'raw_sha256.json').write_text(json.dumps(manifest,indent=2))
     print(out)

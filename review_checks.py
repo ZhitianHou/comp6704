@@ -1,5 +1,5 @@
 """Independent numerical checks plus non-timing replay of frozen formal solutions."""
-from run_pilot import ROOT, np, solve, certificate, threadpool_limits
+from study_common import ROOT, np, solve, threadpool_limits
 from study_io import resolve_run
 from scipy.optimize import minimize
 from sklearn.linear_model import Lasso
@@ -9,9 +9,13 @@ import json
 import subprocess
 import sys
 import tempfile
+import argparse
 
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--run',type=Path,help='Saved formal run; coefficient replay is skipped if processed arrays are absent')
+    args=parser.parse_args()
     results=[]
     with threadpool_limits(limits=1):
         rng=np.random.default_rng(20261120)
@@ -77,18 +81,26 @@ def main():
             pass
         else:
             raise AssertionError('2D target accepted')
-        source=resolve_run()
+        source=resolve_run(args.run)
         rows=list(csv.DictReader((source/'raw_runs.csv').open()))
+        replay_rows=[row for row in rows if row['repeat']=='0']
+        available=[(source/'data'/f"{row['job']}.npz").exists() for row in replay_rows]
+        if any(available) and not all(available):
+            raise ValueError('Only some replay arrays are present; restore a complete run')
         for row in rows:
-            if row['repeat']!='0':
+            if row['repeat']!='0' or not all(available):
                 continue
             data=np.load(source/'data'/f"{row['job']}.npz")
             w,h,s=solve(data['Xtrain'],data['ytrain'],float(row['lam']),row['algorithm'])
             assert s['iterations']==int(row['iterations'])
             np.testing.assert_array_equal(w,data[f"{row['algorithm']}_repeat0"])
             assert h[-1]['objective']==float(row['objective'])
-        results.append(dict(check='frozen_formal_numerical_replay',problem_algorithm_combinations=54,
-                            coefficients_bitwise_identical=True,original_timing_records_untouched=True))
+        results.append(dict(check='frozen_formal_numerical_replay',
+                            status='passed' if all(available) else 'skipped',
+                            problem_algorithm_combinations=len(replay_rows) if all(available) else 0,
+                            coefficients_bitwise_identical=True if all(available) else None,
+                            reason=None if all(available) else 'Processed arrays are excluded from the repository; rerun the formal study to regenerate them',
+                            original_timing_records_untouched=True))
     with tempfile.TemporaryDirectory(prefix='lasso-review-') as tmp:
         p=Path(tmp)
         assert resolve_run(p)==p.resolve()

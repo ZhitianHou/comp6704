@@ -1,5 +1,5 @@
 """Derive conditioning/paired-time summaries from existing problems; no optimization."""
-from run_pilot import ROOT, np, synthetic, threadpool_limits
+from study_common import ROOT, np, synthetic, threadpool_limits
 from study_io import resolve_run
 import csv
 import json

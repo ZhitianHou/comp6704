@@ -1,5 +1,5 @@
 """Audit saved arrays, certificates, split reconstruction and source hashes; no solves."""
-from run_pilot import ROOT, np, certificate, synthetic, preprocess, load_diabetes, threadpool_limits
+from study_common import ROOT, np, certificate, synthetic, preprocess, load_diabetes, threadpool_limits
 from pathlib import Path
 from collections import Counter
 import csv
@@ -61,7 +61,7 @@ def main():
     result=dict(passed=True,rows=audited,source_hashes_verified=True,
                 processed_data_regenerated_and_checked=True,
                 persisted_arrays_and_certificates_checked=arrays_present,
-                note='Compact archive excludes npz arrays; local audit includes them.')
+                note='The repository excludes processed npz arrays; full coefficient checks require regenerated or locally retained arrays.')
     (out/'audit.json').write_text(json.dumps(result,indent=2))
     print(json.dumps(result,indent=2))
 

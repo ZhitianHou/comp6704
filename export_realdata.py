@@ -1,5 +1,8 @@
 """Summaries/figures from the saved additional real dataset; no training."""
-from run_pilot import ROOT,np,plt
+from study_common import ROOT, np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from study_io import write_csv
 from pathlib import Path
 from collections import defaultdict

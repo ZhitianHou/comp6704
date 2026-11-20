@@ -1,5 +1,5 @@
 """Verify source, duplicate-group separation, preprocessing and saved certificates."""
-from run_pilot import ROOT,np,certificate,threadpool_limits
+from study_common import ROOT,np,certificate,threadpool_limits
 from data_superconductivity import load_data,prepare_split
 from pathlib import Path
 import csv

@@ -1,9 +1,8 @@
 """Frozen formal experiment; raw results append to a fresh run directory."""
-from run_pilot import (ROOT, ALGORITHMS, synthetic, preprocess, correctness,
+from study_common import (ROOT, ALGORITHMS, synthetic, preprocess, correctness,
                        solve, certificate, Lasso, load_diabetes, np,
                        threadpool_limits, threadpool_info)
 import argparse
-import csv
 import hashlib
 import json
 import platform
@@ -36,7 +35,7 @@ def main():
     out=args.output or ROOT/"results"/f"formal_{stamp}"
     out.mkdir(parents=True,exist_ok=False)
     (out/"data").mkdir(); (out/"source").mkdir()
-    for name in ["formal_protocol.json","solvers.py","run_pilot.py","run_formal.py","study_io.py","requirements-lock.txt"]:
+    for name in ["formal_protocol.json","solvers.py","study_common.py","run_formal.py","study_io.py","requirements-lock.txt"]:
         shutil.copy2(ROOT/name,out/"source"/name)
     (out/"config.json").write_text(json.dumps(config,indent=2))
     all_start=time.perf_counter()

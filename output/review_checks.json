@@ -34,8 +34,10 @@
     },
     {
       "check": "frozen_formal_numerical_replay",
+      "status": "passed",
       "problem_algorithm_combinations": 54,
       "coefficients_bitwise_identical": true,
+      "reason": null,
       "original_timing_records_untouched": true
     },
     {

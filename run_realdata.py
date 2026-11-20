@@ -1,5 +1,5 @@
 """Additional real regression benchmark, with a frozen independent protocol."""
-from run_pilot import ROOT, np, solve, certificate, Lasso, threadpool_limits, threadpool_info
+from study_common import ROOT, np, solve, certificate, Lasso, threadpool_limits, threadpool_info
 from study_io import write_csv
 from data_superconductivity import load_data,prepare_split
 from datetime import datetime,timezone
@@ -17,7 +17,7 @@ def main():
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     out=ROOT/'results'/f'realdata_{stamp}';out.mkdir(exist_ok=False)
     (out/'source').mkdir();(out/'splits').mkdir()
-    for name in ['solvers.py','run_pilot.py','study_io.py','data_superconductivity.py','run_realdata.py','realdata_protocol.json','requirements-lock.txt']:
+    for name in ['solvers.py','study_common.py','study_io.py','data_superconductivity.py','run_realdata.py','realdata_protocol.json','requirements-lock.txt']:
         shutil.copy2(ROOT/name,out/'source'/name)
     (out/'config.json').write_text(json.dumps(config,indent=2))
     (out/'features.json').write_text(json.dumps(names,indent=2))

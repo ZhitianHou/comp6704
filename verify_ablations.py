@@ -1,5 +1,5 @@
 """Validate complete supplementary logs and, locally, persisted coefficients."""
-from run_pilot import ROOT, np, synthetic, certificate, threadpool_limits
+from study_common import ROOT, np, synthetic, certificate, threadpool_limits
 from pathlib import Path
 from collections import Counter,defaultdict
 import csv

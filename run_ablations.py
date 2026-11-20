@@ -1,5 +1,5 @@
 """Post-hoc robustness experiments; original formal records remain untouched."""
-from run_pilot import ROOT, np, synthetic, solve, certificate, threadpool_limits, threadpool_info
+from study_common import ROOT, np, synthetic, solve, certificate, threadpool_limits, threadpool_info
 from study_io import resolve_run, write_csv
 from datetime import datetime,timezone
 import csv
@@ -32,7 +32,7 @@ def main():
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     out=ROOT/'results'/f'ablations_{stamp}'
     out.mkdir(exist_ok=False);(out/'source').mkdir()
-    for name in ['solvers.py','run_pilot.py','study_io.py','run_ablations.py','ablation_protocol.json']:
+    for name in ['solvers.py','study_common.py','study_io.py','run_ablations.py','ablation_protocol.json']:
         shutil.copy2(ROOT/name,out/'source'/name)
     (out/'config.json').write_text(json.dumps(config,indent=2))
     problem_rows=list(csv.DictReader((source/'problems.csv').open()))
